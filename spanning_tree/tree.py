@@ -205,12 +205,11 @@ class Tree: # pylint: disable=too-few-public-methods
         if not root_bridge:
             raise ValueError("No root bridge in tree.")
 
-        for listened in root_bridge.listened:
-            paths = []
-            _traverse(listened, [root_bridge], paths)
-            paths.sort(key=len)
+        paths = []
+        _traverse(root_bridge, [], paths)
+        paths.sort(key=len)
 
-            if self._shortest_path is None or (len(paths[0]) < len(self._shortest_path)):
-                self._shortest_path = paths[0]
+        if self._shortest_path is None or (len(paths[0]) < len(self._shortest_path)):
+            self._shortest_path = paths[0]
 
         return self._shortest_path
