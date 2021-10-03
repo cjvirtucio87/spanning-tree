@@ -91,22 +91,6 @@ class Port:
         self._listened = listened
 
     @property
-    def is_root(self):
-        """
-        Whether the port is the root port.
-
-        returns: whether the port is the root port.
-        """
-        return self._is_root
-
-    @is_root.setter
-    def is_root(self, is_root: bool):
-        """
-        Set the flag for whether the port is the root port.
-        """
-        self._is_root = is_root
-
-    @property
     def number(self):
         """
         The port number.
@@ -146,17 +130,18 @@ class Bridge:
         other.connect_port(unallocated_port)
         self._listened[unallocated_port.number] = other
 
-    def check_ports(self):
+    def connect_port(self, port: Port):
         """
-        Check whether any of the ports is a root port,
-        which determines whether the bridge is the root bridge.
+        Connect port to the bridge's own unallocated port.
         """
-        for port in self._ports:
-            if port.is_root:
-                self._is_root = True
-                return
+        unallocated_port = self._get_unallocated_port()
+        if unallocated_port is None:
+            raise ValueError("No free ports.")
 
-        self._is_root = False
+        port.connect(unallocated_port)
+
+    def elect(self):
+        self._is_root = True
 
     def _get_unallocated_port(self):
         for port in self._ports:
@@ -173,16 +158,6 @@ class Bridge:
         returns: whether the bridge is the root bridge.
         """
         return self._is_root
-
-    def connect_port(self, port: Port):
-        """
-        Connect port to the bridge's own unallocated port.
-        """
-        unallocated_port = self._get_unallocated_port()
-        if unallocated_port is None:
-            raise ValueError("No free ports.")
-
-        port.connect(unallocated_port)
 
     @property
     def listened(self):
@@ -223,7 +198,6 @@ class Tree: # pylint: disable=too-few-public-methods
 
         root_bridge = None
         for bridge in self._bridges:
-            bridge.check_ports()
             if bridge.is_root:
                 root_bridge = bridge
                 break

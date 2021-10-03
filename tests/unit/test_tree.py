@@ -12,11 +12,8 @@ def test_tree_shortest_path_least_bridges():
         #
         # Shortest path is:
         # root <- a <- b <- e
-        root_port = spanning_tree_tree.Port(1024)
-        root_port.is_root = True
-        root_bridge = spanning_tree_tree.Bridge(
-            'root',
-            root_port)
+        root_bridge = spanning_tree_tree.Bridge('root')
+        root_bridge.elect()
 
         bridge_a = spanning_tree_tree.Bridge(
             'a',
@@ -52,11 +49,8 @@ def test_tree_shortest_path_least_bridges():
         #
         # Shortest path is:
         # root <- a <- c
-        root_port = spanning_tree_tree.Port(1024)
-        root_port.is_root = True
-        root_bridge = spanning_tree_tree.Bridge(
-            'root',
-            root_port)
+        root_bridge = spanning_tree_tree.Bridge('root')
+        root_bridge.elect()
 
         bridge_a = spanning_tree_tree.Bridge(
             'a',
