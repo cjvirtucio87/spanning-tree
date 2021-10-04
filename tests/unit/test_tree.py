@@ -4,7 +4,14 @@ import collections
 import spanning_tree.tree as spanning_tree_tree
 
 def test_tree_shortest_path_least_bridges():
-    Expectation = collections.namedtuple('Expectation', ['expected_path', 'actual_tree'])
+    Expectation = collections.namedtuple(
+        'Expectation',
+        [
+            'expected_shortest_path',
+            'root_bridge',
+            'sending_bridge',
+            'bridges',
+        ])
 
     def first_case():
         # root <- a(1) <- c(1) <- d(1) <- f(1)
@@ -34,14 +41,10 @@ def test_tree_shortest_path_least_bridges():
         bridge_b.connect(bridge_e)
 
         return Expectation(
-            [root_bridge, bridge_a, bridge_b, bridge_e],
-            spanning_tree_tree.Tree(
-                root_bridge,
-                bridge_a,
-                bridge_b,
-                bridge_c,
-                bridge_d,
-                bridge_e))
+            [bridge_e, bridge_b, bridge_a, root_bridge],
+            root_bridge,
+            bridge_e,
+            [bridge_a, bridge_b, bridge_c, bridge_d, bridge_e, bridge_f])
 
     def second_case():
         # root <- a(1) <- c(1)
@@ -67,15 +70,16 @@ def test_tree_shortest_path_least_bridges():
         bridge_b.connect(bridge_d)
 
         return Expectation(
-            [root_bridge, bridge_a, bridge_c],
-            spanning_tree_tree.Tree(
-                root_bridge,
-                bridge_a,
-                bridge_b,
-                bridge_c,
-                bridge_d))
+            [bridge_c, bridge_a, root_bridge],
+            root_bridge,
+            bridge_c,
+            [bridge_a, bridge_b, bridge_c, bridge_d])
 
     expectations = [first_case(), second_case()]
 
     for expectation in expectations:
-        assert expectation.expected_path == expectation.actual_tree.shortest_path()
+        assert expectation.expected_shortest_path \
+            == spanning_tree_tree.shortest_path(
+                    expectation.root_bridge,
+                    expectation.sending_bridge,
+                    *expectation.bridges)

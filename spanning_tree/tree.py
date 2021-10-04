@@ -2,6 +2,7 @@
 Spanning Tree module.
 """
 
+import copy
 import random
 
 # traditional ephemeral port range
@@ -17,14 +18,95 @@ def _ephemeral_port():
     """
     return random.randrange(_EPHEMERAL_PORT_MIN, _EPHEMERAL_PORT_MAX)
 
-def _traverse(bridge: 'Bridge', path, paths):
-    path.append(bridge)
-    if not bridge.listened:
-        paths.append(path.copy())
-        return
+def shortest_path(root_bridge: 'Bridge', sending_bridge: 'Bridge', *bridges: 'Bridge'):
+    """
+    Compute the shortest path to the root bridge.
 
-    for listened in bridge.listened:
-        _traverse(listened, path.copy(), paths)
+    returns: the shortest path to the root bridge.
+    """
+    last_received_bdpus = []
+    for bridge in bridges:
+        bridge.send_bdpu(
+            BridgeProtocolDataUnit(
+                bridge.name,
+                root_bridge.name))
+        last_received_bdpus.append(root_bridge.last_received_bdpu)
+
+    def _by_total_cost_ascending(bdpu):
+        return bdpu.total_cost
+
+    last_received_bdpus.sort(key=_by_total_cost_ascending)
+
+    return list(filter(
+        lambda bdpu: bdpu.path[0] == sending_bridge,
+        last_received_bdpus))[0].path
+
+class BridgeProtocolDataUnit:
+    """
+    A BDPU containing info necessary for Spanning Tree Protocol (STP) to work.
+    """
+
+    def __init__(self, bridge_id, root_id):
+        self._bridge_id = bridge_id
+        self._root_id = root_id
+        self._total_cost = 0
+        self._path = []
+
+    def add_bridge(self, bridge):
+        """
+        Add a bridge to the path tracked by the BDPU.
+        """
+        self._path.append(bridge)
+
+    def add_cost(self, cost: int):
+        """
+        Add the cost of a bridge to the total cost of the path.
+        """
+        self._total_cost += cost
+
+    @property
+    def bridge_id(self):
+        """
+        The ID of the bridge sending the BDPU.
+
+        returns: the ID of the bridge sending the BDPU.
+        """
+        return self._bridge_id
+
+    def copy(self):
+        """
+        Create a copy of this BDPU.
+
+        returns: a copy of this BDPU.
+        """
+        return copy.copy(self)
+
+    @property
+    def path(self):
+        """
+        The path taken by the BDPU.
+
+        returns: the path taken by the BDPU.
+        """
+        return self._path
+
+    @property
+    def root_id(self):
+        """
+        The ID of the bridge that ought to receive packets.
+
+        returns: the ID of the bridge that ought to receive packets.
+        """
+        return self._root_id
+
+    @property
+    def total_cost(self):
+        """
+        The total cost of the path taken by the BDPU.
+
+        returns: the total cost of the path taken by the BDPU.
+        """
+        return self._total_cost
 
 class Port:
     """
@@ -104,11 +186,14 @@ class Bridge:
     A bridge.
     """
 
-    def __init__(self, name: str, *ports: Port):
+    def __init__(self, name: str, *ports: Port, cost: int = 1):
         self._name = name
         self._ports = ports if ports else [Port()]
         self._is_root = False
         self._listened = {}
+        self._listeners = {}
+        self._cost = cost
+        self._last_received_bdpu = None
 
     def __eq__(self, other: object):
         return isinstance(other, Bridge) and self.name == other.name
@@ -123,32 +208,18 @@ class Bridge:
         """
         Connect to another bridge.
         """
-        unallocated_port = self._get_unallocated_port()
+        unallocated_port = self.unallocated_port
         if not unallocated_port:
             raise ValueError("No free ports.")
 
-        other.connect_port(unallocated_port)
         self._listened[unallocated_port.number] = other
-
-    def connect_port(self, port: Port):
-        """
-        Connect port to the bridge's own unallocated port.
-        """
-        unallocated_port = self._get_unallocated_port()
-        if unallocated_port is None:
-            raise ValueError("No free ports.")
-
-        port.connect(unallocated_port)
+        other.set_listener(self)
 
     def elect(self):
+        """
+        Elect a bridge to a root bridge.
+        """
         self._is_root = True
-
-    def _get_unallocated_port(self):
-        for port in self._ports:
-            if not port.connected:
-                return port
-
-        return None
 
     @property
     def is_root(self):
@@ -160,6 +231,15 @@ class Bridge:
         return self._is_root
 
     @property
+    def last_received_bdpu(self):
+        """
+        The last received BDPU.
+
+        returns: the last received BDPU.
+        """
+        return self._last_received_bdpu
+
+    @property
     def listened(self):
         """
         Get all the bridges that this bridge is listening to.
@@ -167,6 +247,15 @@ class Bridge:
         returns: all the bridges that this bridge is listening tos.
         """
         return self._listened.values()
+
+    @property
+    def listeners(self):
+        """
+        Get all the bridges that are listening to this bridge.
+
+        returns: all the bridges that are listening to this bridge.
+        """
+        return self._listeners.values()
 
     @property
     def name(self):
@@ -177,39 +266,36 @@ class Bridge:
         """
         return self._name
 
-class Tree: # pylint: disable=too-few-public-methods
-    """
-    A tree of bridges.
-    """
-
-    def __init__(self, *bridges: Bridge):
-        self._bridges = bridges
-        self._shortest_path = None
-
-    def shortest_path(self):
+    def send_bdpu(self, bdpu):
         """
-        Get the shortest path to the root bridge.
-
-        returns: the shortest path to the root bridge in the form
-            of a list of bridges.
+        Send a BDPU to all of its listeners.
         """
-        if self._shortest_path:
-            return self._shortest_path
+        copied_bdpu = bdpu.copy()
+        copied_bdpu.add_bridge(self)
+        copied_bdpu.add_cost(self._cost)
+        self._last_received_bdpu = copied_bdpu
+        for listener in self.listeners:
+            listener.send_bdpu(bdpu)
 
-        root_bridge = None
-        for bridge in self._bridges:
-            if bridge.is_root:
-                root_bridge = bridge
-                break
+    def set_listener(self, other: 'Bridge'):
+        """
+        Set another bridge as a listener of this bridge.
+        """
+        unallocated_port = self.unallocated_port
+        if not unallocated_port:
+            raise ValueError("No free ports.")
 
-        if not root_bridge:
-            raise ValueError("No root bridge in tree.")
+        self._listeners[unallocated_port.number] = other
 
-        paths = []
-        _traverse(root_bridge, [], paths)
-        paths.sort(key=len)
+    @property
+    def unallocated_port(self):
+        """
+        An unallocated port.
 
-        if self._shortest_path is None or (len(paths[0]) < len(self._shortest_path)):
-            self._shortest_path = paths[0]
+        returns: an unallocated port
+        """
+        for port in self._ports:
+            if not port.connected:
+                return port
 
-        return self._shortest_path
+        return None
