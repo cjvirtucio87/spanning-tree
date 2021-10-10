@@ -63,7 +63,7 @@ class BridgeProtocolDataUnit:
 
     def __str__(self):
         return (
-            f"{self.bridge_id}: "
+            f"[BridgeProtocolDataUnit] {self.bridge_id}: "
             f"root_id={self._root_id}, "
             f"total_cost={self.total_cost}, "
             f"path={self.path}"
@@ -219,7 +219,7 @@ class Bridge:
         return self.__str__()
 
     def __str__(self):
-        return f"Bridge: {self.name}"
+        return f"[Bridge] {self.name}"
 
     def connect(self, other: 'Bridge'):
         """
