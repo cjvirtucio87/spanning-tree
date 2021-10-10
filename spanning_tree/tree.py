@@ -2,6 +2,7 @@
 Spanning Tree module.
 """
 
+import logging
 import copy
 import random
 
@@ -9,6 +10,8 @@ import random
 # see: https://datatracker.ietf.org/doc/html/rfc6056#section-2.1
 _EPHEMERAL_PORT_MAX = 65535
 _EPHEMERAL_PORT_MIN = 1024
+
+_LOGGER = logging.getLogger(__name__)
 
 def _ephemeral_port():
     """
@@ -20,7 +23,7 @@ def _ephemeral_port():
 
 def shortest_path(root_bridge: 'Bridge', sending_bridge: 'Bridge', *bridges: 'Bridge'):
     """
-    Compute the shortest path to the root bridge.
+    Compute the shortest path to the root bridge from the sending bridge.
 
     returns: the shortest path to the root bridge.
     """
@@ -31,6 +34,9 @@ def shortest_path(root_bridge: 'Bridge', sending_bridge: 'Bridge', *bridges: 'Br
                 bridge.name,
                 root_bridge.name))
         last_received_bdpus.append(root_bridge.last_received_bdpu)
+
+    if _LOGGER.isEnabledFor(logging.DEBUG):
+        _LOGGER.debug("last_received_bdpus: %s", last_received_bdpus)
 
     def _by_total_cost_ascending(bdpu):
         return bdpu.total_cost
@@ -51,6 +57,17 @@ class BridgeProtocolDataUnit:
         self._root_id = root_id
         self._total_cost = 0
         self._path = []
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return (
+            f"{self.bridge_id}: "
+            f"root_id={self._root_id}, "
+            f"total_cost={self.total_cost}, "
+            f"path={self.path}"
+        )
 
     def add_bridge(self, bridge):
         """

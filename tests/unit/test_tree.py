@@ -1,7 +1,46 @@
 # pylint: disable=missing-docstring
 
 import collections
+import logging
+import logging.config
 import spanning_tree.tree as spanning_tree_tree
+
+logging.config.dictConfig(
+    {
+        'version': 1,
+        'formatters': {
+            'verbose': {
+                'format': (
+                    '%(levelname)s|%(asctime)s|'
+                    '%(filename)s|%(funcName)s|'
+                    '%(lineno)d|%(message)s'
+                ),
+            },
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+                'stream': 'ext://sys.stdout',
+            },
+        },
+        'loggers': {
+            'spanning_tree.tree': {
+                'level': 'DEBUG',
+                'handlers': [
+                    'console',
+                ],
+            },
+            'tests.unit.test_tree': {
+                'level': 'INFO',
+                'handlers': [
+                    'console',
+                ],
+            },
+        },
+    })
+
+_LOGGER = logging.getLogger(__name__)
 
 def test_tree_shortest_path_least_bridges():
     Expectation = collections.namedtuple(
