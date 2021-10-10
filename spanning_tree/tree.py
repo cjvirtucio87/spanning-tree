@@ -21,31 +21,25 @@ def _ephemeral_port():
     """
     return random.randrange(_EPHEMERAL_PORT_MIN, _EPHEMERAL_PORT_MAX)
 
-def shortest_path(root_bridge: 'Bridge', sending_bridge: 'Bridge', *bridges: 'Bridge'):
+def shortest_path(root_bridge: 'Bridge', sending_bridge: 'Bridge'):
     """
     Compute the shortest path to the root bridge from the sending bridge.
 
     returns: the shortest path to the root bridge.
     """
-    last_received_bdpus = []
-    for bridge in bridges:
-        bridge.send_bdpu(
-            BridgeProtocolDataUnit(
-                bridge.name,
-                root_bridge.name))
-        last_received_bdpus.append(root_bridge.last_received_bdpu)
+    sending_bridge.send_bdpu(
+        BridgeProtocolDataUnit(
+            sending_bridge.name,
+            root_bridge.name))
+
+    received_bdpus = root_bridge.received_bdpus
 
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        _LOGGER.debug("last_received_bdpus: %s", last_received_bdpus)
+        _LOGGER.debug("received_bdpus: %s", received_bdpus)
 
-    def _by_total_cost_ascending(bdpu):
-        return bdpu.total_cost
+    received_bdpus.sort(key=lambda bdpu: bdpu.total_cost)
 
-    last_received_bdpus.sort(key=_by_total_cost_ascending)
-
-    return list(filter(
-        lambda bdpu: bdpu.path[0] == sending_bridge,
-        last_received_bdpus))[0].path
+    return received_bdpus[0].path
 
 class BridgeProtocolDataUnit:
     """
@@ -210,7 +204,7 @@ class Bridge:
         self._listened = {}
         self._listeners = {}
         self._cost = cost
-        self._last_received_bdpu = None
+        self._received_bdpus = []
 
     def __eq__(self, other: object):
         return isinstance(other, Bridge) and self.name == other.name
@@ -248,13 +242,13 @@ class Bridge:
         return self._is_root
 
     @property
-    def last_received_bdpu(self):
+    def received_bdpus(self):
         """
-        The last received BDPU.
+        The received BDPUs.
 
-        returns: the last received BDPU.
+        returns: the received BDPUs.
         """
-        return self._last_received_bdpu
+        return self._received_bdpus.copy()
 
     @property
     def listened(self):
@@ -290,7 +284,7 @@ class Bridge:
         copied_bdpu = bdpu.copy()
         copied_bdpu.add_bridge(self)
         copied_bdpu.add_cost(self._cost)
-        self._last_received_bdpu = copied_bdpu
+        self._received_bdpus.append(copied_bdpu)
         for listener in self.listeners:
             listener.send_bdpu(bdpu)
 

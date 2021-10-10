@@ -49,7 +49,6 @@ def test_tree_shortest_path_least_bridges():
             'expected_shortest_path',
             'root_bridge',
             'sending_bridge',
-            'bridges',
         ])
 
     def first_case():
@@ -82,8 +81,7 @@ def test_tree_shortest_path_least_bridges():
         return Expectation(
             [bridge_e, bridge_b, bridge_a, root_bridge],
             root_bridge,
-            bridge_e,
-            [bridge_a, bridge_b, bridge_c, bridge_d, bridge_e, bridge_f])
+            bridge_e)
 
     def second_case():
         # root <- a(1) <- c(1)
@@ -111,8 +109,7 @@ def test_tree_shortest_path_least_bridges():
         return Expectation(
             [bridge_c, bridge_a, root_bridge],
             root_bridge,
-            bridge_c,
-            [bridge_a, bridge_b, bridge_c, bridge_d])
+            bridge_c)
 
     expectations = [first_case(), second_case()]
 
@@ -120,5 +117,4 @@ def test_tree_shortest_path_least_bridges():
         assert expectation.expected_shortest_path \
             == spanning_tree_tree.shortest_path(
                     expectation.root_bridge,
-                    expectation.sending_bridge,
-                    *expectation.bridges)
+                    expectation.sending_bridge)
